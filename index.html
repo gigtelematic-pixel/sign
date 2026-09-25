@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Подпись Акта ООО «СНТ»</title>
+    <title>Подписание Акта ООО «СНТ»</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -11,35 +11,54 @@
             padding: 12px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f4f6f9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
             box-sizing: border-box;
-            touch-action: none;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .header h3 {
-            margin: 0 0 4px 0;
             color: #1a2b4c;
-            font-size: 16px;
         }
-        .header p {
-            margin: 0;
-            color: #666;
+        h3 {
+            margin: 0 0 6px 0;
+            text-align: center;
+            font-size: 17px;
+        }
+        p.subtitle {
+            margin: 0 0 12px 0;
+            text-align: center;
             font-size: 13px;
+            color: #64748b;
         }
-        .canvas-container {
-            width: 100%;
-            flex-grow: 1;
+        .section {
             background: #ffffff;
-            border: 2px dashed #99aab5;
             border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: #2563eb;
+        }
+        .canvas-box {
             position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            width: 100%;
+            height: 140px;
+            background: #fff;
+            border: 1.5px dashed #94a3b8;
+            border-radius: 8px;
+            margin-top: 6px;
+            touch-action: none;
         }
         canvas {
             width: 100%;
@@ -47,132 +66,150 @@
             display: block;
             border-radius: 8px;
         }
-        .hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #c0c4cc;
-            font-size: 15px;
-            pointer-events: none;
-            user-select: none;
-        }
-        .controls {
-            display: flex;
-            width: 100%;
-            gap: 10px;
-            margin-top: 12px;
-            margin-bottom: 6px;
-        }
-        button {
-            flex: 1;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 8px;
-            border: none;
+        .clear-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #dc2626;
             cursor: pointer;
+            text-decoration: underline;
         }
-        .btn-clear {
-            background-color: #e2e8f0;
-            color: #334155;
-        }
-        .btn-save {
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
             background-color: #10b981;
             color: #ffffff;
+            font-size: 16px;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 6px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h3>Приёмка работ ООО «СНТ»</h3>
-        <p>Распишитесь пальцем или стилусом на поле ниже</p>
+    <h3>Приёмка работ ООО «СНТ»</h3>
+    <p class="subtitle">Электронное подписание акта</p>
+
+    <!-- 1. Блок Заказчика -->
+    <div class="section">
+        <div class="section-title">1. Представитель Заказчика</div>
+        <input type="text" id="clientName" placeholder="Введите ФИО представителя (напр. Иванов И.И.)">
+        <div style="margin-top: 8px; font-size: 13px; color: #475569;">Подпись Заказчика (пальцем на экране):</div>
+        <div class="canvas-box">
+            <canvas id="clientCanvas"></canvas>
+        </div>
+        <span class="clear-link" onclick="clearCanvas(ctxClient, canvasClient, 'client')">Очистить подпись</span>
     </div>
-    <div class="canvas-container">
-        <canvas id="signCanvas"></canvas>
-        <div id="hintText" class="hint">Место для подписи Заказчика</div>
+
+    <!-- 2. Блок Монтажника -->
+    <div class="section">
+        <div class="section-title">2. Подпись Монтажника (ООО «СНТ»)</div>
+        <div class="canvas-box">
+            <canvas id="installerCanvas"></canvas>
+        </div>
+        <span class="clear-link" onclick="clearCanvas(ctxInst, canvasInst, 'installer')">Очистить подпись</span>
     </div>
-    <div class="controls">
-        <button class="btn-clear" onclick="clearPad()">Очистить</button>
-        <button class="btn-save" onclick="sendSignature()">Подтвердить</button>
-    </div>
+
+    <button class="btn-submit" onclick="submitData()">Сохранить и отправить Акт</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const canvas = document.getElementById('signCanvas');
-        const ctx = canvas.getContext('2d');
-        const hint = document.getElementById('hintText');
-        let isDrawing = false;
-        let hasSigned = false;
+        const canvasClient = document.getElementById('clientCanvas');
+        const ctxClient = canvasClient.getContext('2d');
+        const canvasInst = document.getElementById('installerCanvas');
+        const ctxInst = canvasInst.getContext('2d');
 
-        function resizeCanvas() {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * 2;
-            canvas.height = rect.height * 2;
+        let signedClient = false;
+        let signedInst = false;
+
+        function initCanvas(c, ctx) {
+            const rect = c.getBoundingClientRect();
+            c.width = rect.width * 2;
+            c.height = rect.height * 2;
             ctx.scale(2, 2);
             ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.strokeStyle = '#0f172a';
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
 
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
+            let drawing = false;
 
-        function startSign(e) {
-            isDrawing = true;
-            hasSigned = true;
-            hint.style.display = 'none';
-            const pos = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            e.preventDefault();
-        }
+            function getPos(e) {
+                const r = c.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - r.left, y: clientY - r.top };
+            }
 
-        function drawSign(e) {
-            if (!isDrawing) return;
-            const pos = getPos(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            e.preventDefault();
-        }
+            function start(e) {
+                drawing = true;
+                if (c === canvasClient) signedClient = true;
+                if (c === canvasInst) signedInst = true;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                e.preventDefault();
+            }
 
-        function stopSign() {
-            isDrawing = false;
-        }
+            function move(e) {
+                if (!drawing) return;
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                e.preventDefault();
+            }
 
-        canvas.addEventListener('mousedown', startSign);
-        canvas.addEventListener('mousemove', drawSign);
-        window.addEventListener('mouseup', stopSign);
+            function stop() { drawing = false; }
 
-        canvas.addEventListener('touchstart', startSign, {passive: false});
-        canvas.addEventListener('touchmove', drawSign, {passive: false});
-        window.addEventListener('touchend', stopSign);
+            c.addEventListener('mousedown', start);
+            c.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', stop);
 
-        function clearPad() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hint.style.display = 'block';
-            hasSigned = false;
+            c.addEventListener('touchstart', start, {passive: false});
+            c.addEventListener('touchmove', move, {passive: false});
+            window.addEventListener('touchend', stop);
         }
 
-        function sendSignature() {
-            if (!hasSigned) {
-                alert("Пожалуйста, поставьте подпись перед отправкой!");
+        window.addEventListener('load', () => {
+            initCanvas(canvasClient, ctxClient);
+            initCanvas(canvasInst, ctxInst);
+        });
+
+        function clearCanvas(ctx, c, type) {
+            ctx.clearRect(0, 0, c.width, c.height);
+            if (type === 'client') signedClient = false;
+            if (type === 'installer') signedInst = false;
+        }
+
+        function submitData() {
+            const name = document.getElementById('clientName').value.trim();
+            if (!name) {
+                alert("Пожалуйста, введите ФИО представителя Заказчика!");
                 return;
             }
-            const dataUrl = canvas.toDataURL('image/png');
-            tg.sendData(JSON.stringify({ action: "client_signature", image: dataUrl }));
+            if (!signedClient) {
+                alert("Пожалуйста, поставьте подпись Заказчика!");
+                return;
+            }
+            if (!signedInst) {
+                alert("Пожалуйста, поставьте подпись Монтажника!");
+                return;
+            }
+
+            const clientSignBase64 = canvasClient.toDataURL('image/png');
+            const instSignBase64 = canvasInst.toDataURL('image/png');
+
+            tg.sendData(JSON.stringify({
+                action: "full_signature",
+                client_name: name,
+                client_sign: clientSignBase64,
+                installer_sign: instSignBase64
+            }));
             tg.close();
         }
     </script>
