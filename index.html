@@ -25,7 +25,7 @@
     <div class="section">
         <div class="section-title">1. Представитель Заказчика</div>
         <input type="text" id="clientName" placeholder="ФИО представителя (напр. Иванов И.И.)">
-        <div style="margin-top: 10px; font-size: 13px; color: #475569;">Подпись Заказчика (пальцем на экране):</div>
+        <div style="margin-top: 10px; font-size: 13px; color: #475569;">Подпись Заказчика (синей ручкой):</div>
         <div class="canvas-box">
             <canvas id="clientCanvas"></canvas>
         </div>
@@ -43,24 +43,31 @@
     <button id="subBtn" class="btn-submit" onclick="submitData()">Сохранить и отправить Акт</button>
 
     <script>
-        const BOT_USERNAME = "snt_glonass_bot"; // Юзернейм вашего бота без @
-
         const clientCanvas = document.getElementById('clientCanvas');
         const installerCanvas = document.getElementById('installerCanvas');
         let signedClient = false;
         let signedInst = false;
 
+        // Цвет синей пасты
+        const PEN_COLOR = '#10398A';
+
         function setupCanvas(canvas, onDraw) {
             const ctx = canvas.getContext('2d');
+            
             function resize() {
                 const rect = canvas.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                ctx.lineWidth = 2.5;
+                // Увеличенное разрешение (Retina 3x) для четких линий без мыла
+                canvas.width = rect.width * 3;
+                canvas.height = rect.height * 3;
+                ctx.scale(3, 3);
+                ctx.lineWidth = 2.4;
                 ctx.lineCap = 'round';
-                ctx.strokeStyle = '#000000';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = PEN_COLOR;
             }
             resize();
+            window.addEventListener('resize', resize);
+
             let drawing = false, lx = 0, ly = 0;
             function getP(e) {
                 const r = canvas.getBoundingClientRect();
@@ -98,15 +105,16 @@
             }
         }
 
+        // Сохранение высокого качества (260x100)
         function compressCanvas(srcCanvas) {
             const temp = document.createElement('canvas');
-            temp.width = 120;
-            temp.height = 50;
+            temp.width = 260;
+            temp.height = 100;
             const tCtx = temp.getContext('2d');
             tCtx.fillStyle = '#ffffff';
-            tCtx.fillRect(0, 0, 120, 50);
-            tCtx.drawImage(srcCanvas, 0, 0, 120, 50);
-            return temp.toDataURL('image/jpeg', 0.2).split(',')[1];
+            tCtx.fillRect(0, 0, 260, 100);
+            tCtx.drawImage(srcCanvas, 0, 0, 260, 100);
+            return temp.toDataURL('image/jpeg', 0.55).split(',')[1];
         }
 
         function submitData() {
@@ -122,12 +130,8 @@
             const cData = compressCanvas(clientCanvas);
             const iData = compressCanvas(installerCanvas);
 
-            // Формируем текстовую команду для бота
             const sendText = "SIGN_DATA:" + name + "|" + cData + "|" + iData;
-
-            // Мгновенный переход прямо в диалог с ботом с предзаполненным текстом
-            const tgLink = "https://t.me/share/url?url=" + encodeURIComponent(sendText);
-            window.location.href = tgLink;
+            window.location.href = "https://t.me/share/url?url=" + encodeURIComponent(sendText);
         }
     </script>
 </body>
