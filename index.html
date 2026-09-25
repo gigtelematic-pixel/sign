@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Подписание Акта ООО «СНТ»</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f6f9; color: #1a2b4c; user-select: none; }
@@ -11,12 +12,11 @@
         p.subtitle { margin: 0 0 12px 0; text-align: center; font-size: 13px; color: #64748b; }
         .section { background: #ffffff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .section-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 15px; outline: none; user-select: text; }
         .canvas-box { position: relative; width: 100%; height: 140px; background: #ffffff; border: 2px dashed #94a3b8; border-radius: 8px; margin-top: 8px; touch-action: none; }
         canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
         .clear-btn { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; color: #ef4444; cursor: pointer; }
         .btn-submit { width: 100%; padding: 15px; background-color: #10b981; color: #ffffff; font-size: 16px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; margin-top: 10px; margin-bottom: 30px; }
-        .btn-submit:disabled { background-color: #94a3b8; }
     </style>
 </head>
 <body>
@@ -44,9 +44,12 @@
     <button id="subBtn" class="btn-submit" onclick="submitData()">Сохранить и отправить Акт</button>
 
     <script>
-        const BOT_TOKEN = "8833573624:AAEQt05X7nh5rxmlOs0cGqbEpzz0eUuxaH0";
-        const urlParams = new URLSearchParams(window.location.search);
-        const chatId = urlParams.get('uid');
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+        }
 
         const clientCanvas = document.getElementById('clientCanvas');
         const installerCanvas = document.getElementById('installerCanvas');
@@ -57,12 +60,11 @@
             const ctx = canvas.getContext('2d');
             function resize() {
                 const rect = canvas.getBoundingClientRect();
-                canvas.width = rect.width * 2;
-                canvas.height = rect.height * 2;
-                ctx.scale(2, 2);
-                ctx.lineWidth = 3;
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                ctx.lineWidth = 2.5;
                 ctx.lineCap = 'round';
-                ctx.strokeStyle = '#0f172a';
+                ctx.strokeStyle = '#000000';
             }
             resize();
             let drawing = false, lx = 0, ly = 0;
@@ -102,52 +104,44 @@
             }
         }
 
-        async function submitData() {
+        // Функция компактного сжатия холста в монохромный JPEG до ~1 КБ
+        function compressCanvas(srcCanvas) {
+            const temp = document.createElement('canvas');
+            temp.width = 160;
+            temp.height = 70;
+            const tCtx = temp.getContext('2d');
+            tCtx.fillStyle = '#ffffff';
+            tCtx.fillRect(0, 0, 160, 70);
+            tCtx.drawImage(srcCanvas, 0, 0, 160, 70);
+            return temp.toDataURL('image/jpeg', 0.3).split(',')[1];
+        }
+
+        function submitData() {
             const name = document.getElementById('clientName').value.trim();
             if (!name) { alert("Введите ФИО представителя Заказчика!"); return; }
             if (!signedClient) { alert("Поставьте подпись Заказчика!"); return; }
             if (!signedInst) { alert("Поставьте подпись Монтажника!"); return; }
-            if (!chatId) { alert("Ошибка сессии: не найден ID пользователя. Переоткройте ссылку из бота!"); return; }
 
             const btn = document.getElementById('subBtn');
             btn.disabled = true;
             btn.innerText = "⏳ Отправка в бот...";
 
-            // Соединяем обе подписи на один холст для быстрой и надежной отправки в Telegram
-            const merged = document.createElement('canvas');
-            merged.width = 600;
-            merged.height = 300;
-            const mCtx = merged.getContext('2d');
-            mCtx.fillStyle = '#ffffff';
-            mCtx.fillRect(0, 0, 600, 300);
-            mCtx.drawImage(clientCanvas, 0, 0, 300, 300);
-            mCtx.drawImage(installerCanvas, 300, 0, 300, 300);
+            const cData = compressCanvas(clientCanvas);
+            const iData = compressCanvas(installerCanvas);
 
-            merged.toBlob(async (blob) => {
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append('photo', blob, 'signatures.png');
-                formData.append('caption', `SIGN_PAYLOAD:${name}`);
+            const payload = JSON.stringify({
+                action: "full_signature",
+                name: name,
+                c: cData,
+                i: iData
+            });
 
-                try {
-                    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (res.ok) {
-                        alert("✅ Подписи приняты! Закройте это окно крестиком, бот уже формирует Акт.");
-                        window.close();
-                    } else {
-                        alert("Ошибка отправки. Попробуйте еще раз.");
-                        btn.disabled = false;
-                        btn.innerText = "Сохранить и отправить Акт";
-                    }
-                } catch (e) {
-                    alert("Ошибка сети при отправке: " + e);
-                    btn.disabled = false;
-                    btn.innerText = "Сохранить и отправить Акт";
-                }
-            }, 'image/png');
+            if (tg) {
+                tg.sendData(payload);
+                tg.close();
+            } else {
+                alert("Откройте страницу внутри Telegram!");
+            }
         }
     </script>
 </body>
