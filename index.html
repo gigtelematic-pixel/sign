@@ -2,20 +2,28 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Отключаем лишнее кеширование для мгновенного подтягивания изменений -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Подписание Акта ООО «СНТ»</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
         body {
             margin: 0;
             padding: 12px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f4f6f9;
-            box-sizing: border-box;
             color: #1a2b4c;
+            user-select: none;
+            -webkit-user-select: none;
         }
         h3 {
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             text-align: center;
             font-size: 17px;
         }
@@ -27,10 +35,10 @@
         }
         .section {
             background: #ffffff;
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 12px;
+            padding: 14px;
             margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
         .section-title {
             font-size: 14px;
@@ -40,12 +48,13 @@
         }
         input[type="text"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border: 1.5px solid #cbd5e1;
             border-radius: 8px;
-            font-size: 14px;
-            box-sizing: border-box;
+            font-size: 15px;
             outline: none;
+            user-select: text;
+            -webkit-user-select: text;
         }
         input[type="text"]:focus {
             border-color: #2563eb;
@@ -53,39 +62,42 @@
         .canvas-box {
             position: relative;
             width: 100%;
-            height: 140px;
-            background: #fff;
-            border: 1.5px dashed #94a3b8;
+            height: 150px;
+            background: #ffffff;
+            border: 2px dashed #94a3b8;
             border-radius: 8px;
-            margin-top: 6px;
+            margin-top: 8px;
             touch-action: none;
         }
         canvas {
             width: 100%;
             height: 100%;
             display: block;
-            border-radius: 8px;
+            touch-action: none;
+            cursor: crosshair;
         }
-        .clear-link {
+        .clear-btn {
             display: inline-block;
-            margin-top: 6px;
-            font-size: 12px;
-            color: #dc2626;
+            margin-top: 8px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #ef4444;
             cursor: pointer;
-            text-decoration: underline;
         }
         .btn-submit {
             width: 100%;
-            padding: 14px;
+            padding: 15px;
             background-color: #10b981;
             color: #ffffff;
             font-size: 16px;
             font-weight: 700;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            margin-top: 6px;
-            margin-bottom: 20px;
+            margin-top: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
         }
     </style>
 </head>
@@ -93,97 +105,131 @@
     <h3>Приёмка работ ООО «СНТ»</h3>
     <p class="subtitle">Электронное подписание акта</p>
 
-    <!-- 1. Блок Заказчика -->
+    <!-- 1. Заказчик -->
     <div class="section">
         <div class="section-title">1. Представитель Заказчика</div>
-        <input type="text" id="clientName" placeholder="Введите ФИО представителя (напр. Иванов И.И.)">
-        <div style="margin-top: 8px; font-size: 13px; color: #475569;">Подпись Заказчика (пальцем на экране):</div>
+        <input type="text" id="clientName" placeholder="ФИО представителя (напр. Иванов И.И.)">
+        <div style="margin-top: 10px; font-size: 13px; color: #475569;">Подпись Заказчика (пальцем на экране):</div>
         <div class="canvas-box">
             <canvas id="clientCanvas"></canvas>
         </div>
-        <span class="clear-link" onclick="clearCanvas(ctxClient, canvasClient, 'client')">Очистить подпись</span>
+        <div class="clear-btn" onclick="clearPad('client')">Очистить подпись</div>
     </div>
 
-    <!-- 2. Блок Монтажника -->
+    <!-- 2. Монтажник -->
     <div class="section">
         <div class="section-title">2. Подпись Монтажника (ООО «СНТ»)</div>
         <div class="canvas-box">
             <canvas id="installerCanvas"></canvas>
         </div>
-        <span class="clear-link" onclick="clearCanvas(ctxInst, canvasInst, 'installer')">Очистить подпись</span>
+        <div class="clear-btn" onclick="clearPad('installer')">Очистить подпись</div>
     </div>
 
     <button class="btn-submit" onclick="submitData()">Сохранить и отправить Акт</button>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+    <!-- Скрипт Telegram перенесен в конец с async — страница не ждет его загрузки -->
+    <script async src="https://telegram.org/js/telegram-web-app.js"></script>
 
-        const canvasClient = document.getElementById('clientCanvas');
-        const ctxClient = canvasClient.getContext('2d');
-        const canvasInst = document.getElementById('installerCanvas');
-        const ctxInst = canvasInst.getContext('2d');
+    <script>
+        // Инициализация WebApp без задержек
+        function initTelegram() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                if (tg.disableVerticalSwipes) {
+                    tg.disableVerticalSwipes();
+                }
+            }
+        }
+        initTelegram();
+        window.addEventListener('load', initTelegram);
+
+        const clientCanvas = document.getElementById('clientCanvas');
+        const installerCanvas = document.getElementById('installerCanvas');
 
         let signedClient = false;
         let signedInst = false;
 
-        function initCanvas(c, ctx) {
-            const rect = c.getBoundingClientRect();
-            c.width = rect.width * 2;
-            c.height = rect.height * 2;
-            ctx.scale(2, 2);
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#0f172a';
+        function setupCanvas(canvas, onDrawCallback) {
+            const ctx = canvas.getContext('2d');
 
-            let drawing = false;
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#0f172a';
+            }
+
+            resize();
+            window.addEventListener('resize', resize);
+
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
 
             function getPos(e) {
-                const r = c.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: clientX - r.left, y: clientY - r.top };
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
             }
 
-            function start(e) {
-                drawing = true;
-                if (c === canvasClient) signedClient = true;
-                if (c === canvasInst) signedInst = true;
+            canvas.addEventListener('pointerdown', (e) => {
+                isDrawing = true;
+                canvas.setPointerCapture(e.pointerId);
+                const pos = getPos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(lastX + 0.1, lastY + 0.1);
+                ctx.stroke();
+                onDrawCallback();
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!isDrawing) return;
                 const pos = getPos(e);
                 ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
-                e.preventDefault();
-            }
-
-            function move(e) {
-                if (!drawing) return;
-                const pos = getPos(e);
+                ctx.moveTo(lastX, lastY);
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
-                e.preventDefault();
+                lastX = pos.x;
+                lastY = pos.y;
+            });
+
+            function endDrawing(e) {
+                if (!isDrawing) return;
+                isDrawing = false;
+                try {
+                    canvas.releasePointerCapture(e.pointerId);
+                } catch (err) {}
             }
 
-            function stop() { drawing = false; }
-
-            c.addEventListener('mousedown', start);
-            c.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', stop);
-
-            c.addEventListener('touchstart', start, {passive: false});
-            c.addEventListener('touchmove', move, {passive: false});
-            window.addEventListener('touchend', stop);
+            canvas.addEventListener('pointerup', endDrawing);
+            canvas.addEventListener('pointercancel', endDrawing);
         }
 
-        window.addEventListener('load', () => {
-            initCanvas(canvasClient, ctxClient);
-            initCanvas(canvasInst, ctxInst);
-        });
+        setupCanvas(clientCanvas, () => { signedClient = true; });
+        setupCanvas(installerCanvas, () => { signedInst = true; });
 
-        function clearCanvas(ctx, c, type) {
-            ctx.clearRect(0, 0, c.width, c.height);
-            if (type === 'client') signedClient = false;
-            if (type === 'installer') signedInst = false;
+        function clearPad(type) {
+            if (type === 'client') {
+                const ctx = clientCanvas.getContext('2d');
+                ctx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
+                signedClient = false;
+            } else {
+                const ctx = installerCanvas.getContext('2d');
+                ctx.clearRect(0, 0, installerCanvas.width, installerCanvas.height);
+                signedInst = false;
+            }
         }
 
         function submitData() {
@@ -201,16 +247,21 @@
                 return;
             }
 
-            const clientSignBase64 = canvasClient.toDataURL('image/png');
-            const instSignBase64 = canvasInst.toDataURL('image/png');
+            const clientSignBase64 = clientCanvas.toDataURL('image/png');
+            const instSignBase64 = installerCanvas.toDataURL('image/png');
 
-            tg.sendData(JSON.stringify({
-                action: "full_signature",
-                client_name: name,
-                client_sign: clientSignBase64,
-                installer_sign: instSignBase64
-            }));
-            tg.close();
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.sendData(JSON.stringify({
+                    action: "full_signature",
+                    client_name: name,
+                    client_sign: clientSignBase64,
+                    installer_sign: instSignBase64
+                }));
+                tg.close();
+            } else {
+                alert("Подписи зафиксированы! Откройте внутри Telegram для отправки в базу.");
+            }
         }
     </script>
 </body>
