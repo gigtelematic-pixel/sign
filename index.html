@@ -104,16 +104,16 @@
             }
         }
 
-        // Функция компактного сжатия холста в монохромный JPEG до ~1 КБ
+        // Моментальное сжатие канваса в миниатюрный JPEG (~900 байт)
         function compressCanvas(srcCanvas) {
             const temp = document.createElement('canvas');
-            temp.width = 160;
-            temp.height = 70;
+            temp.width = 140;
+            temp.height = 60;
             const tCtx = temp.getContext('2d');
             tCtx.fillStyle = '#ffffff';
-            tCtx.fillRect(0, 0, 160, 70);
-            tCtx.drawImage(srcCanvas, 0, 0, 160, 70);
-            return temp.toDataURL('image/jpeg', 0.3).split(',')[1];
+            tCtx.fillRect(0, 0, 140, 60);
+            tCtx.drawImage(srcCanvas, 0, 0, 140, 60);
+            return temp.toDataURL('image/jpeg', 0.25).split(',')[1];
         }
 
         function submitData() {
@@ -124,7 +124,7 @@
 
             const btn = document.getElementById('subBtn');
             btn.disabled = true;
-            btn.innerText = "⏳ Отправка в бот...";
+            btn.innerText = "Отправлено!";
 
             const cData = compressCanvas(clientCanvas);
             const iData = compressCanvas(installerCanvas);
@@ -137,6 +137,7 @@
             });
 
             if (tg) {
+                // Передача через встроенную шину Telegram без ожидания сетевых запросов
                 tg.sendData(payload);
                 tg.close();
             } else {
