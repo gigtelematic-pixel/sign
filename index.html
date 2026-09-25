@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Подписание Акта ООО «СНТ»</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f4f6f9; color: #1a2b4c; user-select: none; }
@@ -44,12 +43,7 @@
     <button id="subBtn" class="btn-submit" onclick="submitData()">Сохранить и отправить Акт</button>
 
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
-            if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-        }
+        const BOT_USERNAME = "snt_glonass_bot"; // Юзернейм вашего бота без @
 
         const clientCanvas = document.getElementById('clientCanvas');
         const installerCanvas = document.getElementById('installerCanvas');
@@ -104,16 +98,15 @@
             }
         }
 
-        // Моментальное сжатие канваса в миниатюрный JPEG (~900 байт)
         function compressCanvas(srcCanvas) {
             const temp = document.createElement('canvas');
-            temp.width = 140;
-            temp.height = 60;
+            temp.width = 120;
+            temp.height = 50;
             const tCtx = temp.getContext('2d');
             tCtx.fillStyle = '#ffffff';
-            tCtx.fillRect(0, 0, 140, 60);
-            tCtx.drawImage(srcCanvas, 0, 0, 140, 60);
-            return temp.toDataURL('image/jpeg', 0.25).split(',')[1];
+            tCtx.fillRect(0, 0, 120, 50);
+            tCtx.drawImage(srcCanvas, 0, 0, 120, 50);
+            return temp.toDataURL('image/jpeg', 0.2).split(',')[1];
         }
 
         function submitData() {
@@ -124,25 +117,17 @@
 
             const btn = document.getElementById('subBtn');
             btn.disabled = true;
-            btn.innerText = "Отправлено!";
+            btn.innerText = "⏳ Переход в диалог бота...";
 
             const cData = compressCanvas(clientCanvas);
             const iData = compressCanvas(installerCanvas);
 
-            const payload = JSON.stringify({
-                action: "full_signature",
-                name: name,
-                c: cData,
-                i: iData
-            });
+            // Формируем текстовую команду для бота
+            const sendText = "SIGN_DATA:" + name + "|" + cData + "|" + iData;
 
-            if (tg) {
-                // Передача через встроенную шину Telegram без ожидания сетевых запросов
-                tg.sendData(payload);
-                tg.close();
-            } else {
-                alert("Откройте страницу внутри Telegram!");
-            }
+            // Мгновенный переход прямо в диалог с ботом с предзаполненным текстом
+            const tgLink = "https://t.me/share/url?url=" + encodeURIComponent(sendText);
+            window.location.href = tgLink;
         }
     </script>
 </body>
